@@ -6,14 +6,13 @@
  *
  * Timer1配置:
  * - 周期: 2.5ms (400Hz)
- * - 执行状态机和保护逻辑
+ * - 执行状态机
  * - 在RAM中运行以提高速度
  */
 
 #include "timer1.h"
 #include "led.h"
-#include "function.h"
-#include "LLC_function.h"
+#include "llc_app.h"
 
 #pragma CODE_SECTION(Timer1_IRQn, ".TI.ramfunc")
 
@@ -66,5 +65,5 @@ void Timer1_Init(float Freq, float Period)
 interrupt void Timer1_IRQn(void)
 {
     LED2_TOGGLE;
-    LLC_State_M();
+    LLC_App_SlowTick();
 }

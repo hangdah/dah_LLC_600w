@@ -5,8 +5,7 @@
  * @author da
  *
  * 本项目为基于TI TMS320F28335 DSP的微型逆变器应用实现控制软件。
- * 其特点是双闭环控制结构，包含用于电压PI控制的快速环路（Timer0 ~50kHz）
- * 和用于状态机及保护逻辑的慢速环路（Timer1 400Hz）。
+ * Timer0 执行电压 PI 调频控制（100 kHz），Timer1 执行状态机（400 Hz）。
  */
 
 #include "adc.h"
@@ -14,20 +13,15 @@
 #include "timer1.h"
 #include "epwm.h"
 #include "led.h"
-#include "relay.h"
-#include "mppt.h"
 #include "DSP2833x_Device.h"
 #include "DSP2833x_Examples.h"
-#include "function.h"
-#include "LLC_function.h"
+#include "control_config.h"
+#include "llc_app.h"
 #include <stdint.h>
 
 extern Uint16 RamfuncsLoadStart;
 extern Uint16 RamfuncsLoadSize;
 extern Uint16 RamfuncsRunStart;
-
-extern struct _PWM_Values Boost_PWM;
-extern struct _PWM_Values LLC_PWM;
 
 /**
  * @brief 主函数 - 系统初始化与主循环
@@ -68,17 +62,16 @@ void main()
 
     /* 初始化外设 */
     LED_Init();                     /* 初始化用于LED的GPIO */
-    LLC_Ctr_Init();                  /* 初始化PI控制器参数 */
-    LLC_PWM_Values_Init();          /* 初始化PWM时序值 */
+    LLC_App_Init();                 /* 初始化LLC控制参数和PWM时序值 */
 
     /* 初始化定时器 - Timer0: 10us (100kHz) 用于快速控制环路 */
-    Timer0_Init(150.0f, 10.0f);     /* CPU频率: 150MHz, 周期: 10us */
+    Timer0_Init(LLC_CPU_MHZ, LLC_FAST_PERIOD_US);
     /* Timer1: 2500us (400Hz) 用于慢速控制环路和状态机 */
-    Timer1_Init(150.0f, 2500.0f);   /* CPU频率: 150MHz, 周期: 2500us */
+    Timer1_Init(LLC_CPU_MHZ, LLC_SLOW_PERIOD_US);
 
-    EPWM1_Init(LLC_PWM.PWM_TBPRD); /* 使用计算出的周期初始化ePWM1 */
+    EPWM1_Init(LLC_App_GetInitialTbprd()); /* 使用计算出的周期初始化ePWM1 */
     ADC_Init();                     /* 初始化ADC用于电压/电流采样 */
-    PWM_Disable();                  /* 在启动序列完成前保持PWM禁用 */
+    LLC_App_DisableOutput();                  /* 在启动序列完成前保持PWM禁用 */
 
     /* 启用PWM时钟同步 */
     EALLOW;

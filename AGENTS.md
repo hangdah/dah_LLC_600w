@@ -24,19 +24,22 @@
 | 路径 | 职责与注意事项 |
 | --- | --- |
 | `main.c` | 系统入口、Flash/RAM 准备、外设与控制参数初始化、定时器周期设置；主循环为空 |
-| `APP/LLC_function.c` | 当前 LLC 控制：参数初始化、电压 PI、PWM 更新、ADC 流水采样、状态机、软启动及 Burst 函数 |
-| `APP/APP_Libraries/LLC_function.h` | LLC 接口、控制频率和谐振点宏、软启动子状态枚举及 ADC 标志声明 |
+| `APP/llc_app.c` | LLC 应用入口，持有快慢环共享的控制指令 |
+| `APP/control_config.c`、`APP/APP_Libraries/control_config.h` | 控制默认值、参数和量纲 |
+| `APP/control_algorithm.c` | LLC 电压 PI 参数、输出到周期的换算及周期限幅 |
+| `APP/pi_controller.c` | 通用增量式 PI、误差与输出限幅、抗饱和状态更新 |
+| `APP/control_sampling.c` | ADC 流水采样、滤波及输出电流零偏校准 |
+| `APP/control_pwm.c` | PWM 计算、运行时寄存器更新及 Trip Zone 输出启停 |
+| `APP/control_state.c` | 主状态机、软启动子状态及预留的 Burst 实现 |
 | `APP/timer0.c`、`APP/timer1.c` | 快速控制中断、慢速状态机中断及各自初始化 |
-| `APP/adc.c`、`APP/epwm.c` | ADC 与 ePWM 寄存器配置，含遗留或当前未使用的 ISR |
-| `APP/function.c` | 遗留 Boost 控制，同时提供 LLC 仍在使用的 `ADC_Transform`、`PWM_Enable()`、`PWM_Disable()` |
-| `APP/APP_Libraries/function.h` | LLC 仍依赖的公共结构、主状态枚举、`IIR_ALPHA`、`_FLASHOK` 及公共接口 |
+| `APP/adc.c`、`APP/epwm.c` | ADC 与 ePWM 寄存器初始化 |
 | `APP/led.c`、`key.c`、`relay.c`、`exit.c`、`mppt.c` | LED、按键、继电器、外部中断、MPPT；是否实际启用须检查调用路径 |
 | `APP/APP_Libraries/` | 应用层头文件；头文件不与 `.c` 文件同目录 |
 | `DSP2833x_Librsries/` | TI 外设支持源码、汇编、链接脚本和 `IQmath.lib`；保留现有目录拼写 |
 | `.project`、`.cproject`、`.ccsproject`、`targetConfigs/` | CCS 工程、工具链与目标配置 |
 | `Debug/` | CCS 自动生成的 makefile、依赖及构建产物，不作为源码修改入口 |
 
-LLC 算法修改优先定位 `LLC_function.c`，不要误改同名或近似名称的 Boost 控制函数。也不要将 `function.c/h` 整体视为无用代码删除，LLC 仍依赖其中的公共实现。
+控制入口集中在 `llc_app.h`。模块内状态优先使用文件作用域的 `static`，快慢环共享的控制指令由 `llc_app.c` 持有。保留 `g_Soft_State_M_for_Graph` 供 CCS Graph 观察。
 
 ## 当前实际控制路径
 
@@ -45,42 +48,41 @@ LLC 算法修改优先定位 `LLC_function.c`，不要误改同名或近似名�
 - `main()` 通过 `_FLASHOK` 条件编译执行 RAM 函数复制及 `InitFlash()`，并初始化系统时钟、PIE、LED、LLC 参数、Timer0/1、ePWM1 和 ADC。
 - 外设配置涉及 `TBCLKSYNC` 的关闭和恢复，启动过程中调用 `PWM_Disable()`。修改初始化顺序时须追踪定时器启动、中断使能和 PWM 输出状态。
 - `Timer0_Init()` 与 `Timer1_Init()` 内部也调用 `EINT`、`ERTM`，不能仅依据 `main()` 末尾的中断使能语句推断初始化全过程均无中断。
-- Timer0：`Timer0_Init(150.0f, 10.0f)`，当前周期为 **10 us / 100 kHz**。源码中部分 20 us / 50 kHz 注释已过时。
-- `Timer0_IRQn()`：翻转 LED1 → `LLC_ADC_ReadPrevious_And_StartNext()` → 在 `g_llc_adc_valid` 非零时执行电压 PI 和 `LLC_PWM_Update()` → 应答 PIE Group1。
-- Timer1：`Timer1_Init(150.0f, 2500.0f)`，周期 **2.5 ms / 400 Hz**；`Timer1_IRQn()` 翻转 LED2 并调用 `LLC_State_M()`。
-- Timer0 控制的当前门控是 `g_llc_adc_valid`，不是主状态等于 `Run`。该标志一旦有效会保持，不能当成“本次中断获得了新采样”的标志。
+- Timer0 使用 `LLC_FAST_PERIOD_US`，当前周期为 **10 us / 100 kHz**。
+- `Timer0_IRQn()` 翻转 LED1，调用 `LLC_App_FastTick()`，然后应答 PIE Group1。快环依次读取上一帧并触发下一帧、执行电压 PI、更新 PWM。
+- Timer1 使用 `LLC_SLOW_PERIOD_US`，当前周期为 **2.5 ms / 400 Hz**。`Timer1_IRQn()` 翻转 LED2，经 `LLC_App_SlowTick()` 调用 `LLC_State_M()`。
+- 首次读到有效 ADC 结果后才执行电压 PI。之后若某次转换尚未完成，快环沿用最近一次有效采样。
 
 ### 主状态机与软启动
 
-- `LLC_State_M()` 使用 `LLC_Flag.StateM` 和 `function.h` 中的 `STATE_M`：`Init → Wait → Rise → Run`，另有 `Err` 分支。
+- `LLC_State_M()` 使用 `LLC_Flag.StateM` 和 `control_state.c` 内部的 `STATE_M`：`Init → Wait → Rise → Run`，另有 `Err` 分支。
 - `Init` 中进行参数初始化和 `IoutOffsetCal()`；偏移校准累计 256 次后完成。
 - `Wait` 中无错误时累计 600 个 Timer1 周期，约 1.5 s 后进入 `Rise`。
 - `Rise` 内部才使用 `Soft_State_M`：`SSInit → SSWait → SSRun`。不要将此枚举误写为 LLC 主状态机。
-- `SSWait` 条件为计数 `> 200`，按当前 2.5 ms 调用周期约为 502.5 ms；不要照搬注释中的 1000 ms。
+- `SSWait` 条件为计数 `> 200`，按当前 2.5 ms 调用周期约为 502.5 ms。
 - `SSRun` 逐步增大允许的最大周期并减小死区，达到目标后转入主状态 `Run`。
 - `LLC_StateMRun()` 当前为空；`LLC_StateMErr()` 调用 `PWM_Disable()`。
-- `LLC_I_PI_Controller_ComputeIncremental_AntiWindup()` 是空占位函数。`LLC_BurstCtl()` 已定义，但当前主控制路径未调用它，不能据函数存在声称功能已经启用。
+- `LLC_BurstCtl()` 保留在状态模块，当前慢环未调用。
 
 ## 控制参数与单位
 
-- `fs = 100000.0f` 当前用于 `LLC_Ctr.Ts = 1.0f / fs`，对应 Timer0 控制频率；它不是 LLC 实际开关频率。修改控制周期时须核对 Timer0、`Ts`、`V_Ki_Ts`、滤波及相关计时。
-- 谐振点宏为 `LLC_RESONANT_FREQ = 400000.0f`、`LLC_RESONANT_CYCLE_US = 2.5f`；初始化另有 `PWM_Freq = 400000.0f`。修改谐振点时检查这些值、PI 中心点、清零值和周期上下限的一致性，不能假设宏会自动更新所有配置。
-- 当前电压 PI 初始化：`V_Kp = 150.0f`、`V_Ki = 150000.0f`，误差限幅为 ±20，PI 输出限幅为 `[-0.83, 1.5]` us。
+- `LLC_CONTROL_RATE_HZ` 由 Timer0 的周期配置推导，并用于计算 PI 的 `LLC_V_KI_TS`。修改控制周期时一并核对滤波及相关计时。
+- `LLC_RESONANT_FREQ` 与 `LLC_RESONANT_CYCLE_US` 对应 400 kHz / 2.5 us，分别用于 PWM 初始化及 PI 中心点。修改谐振点时同时检查两个配置值和周期限幅。
+- 当前电压 PI 初始化为 `Kp = 150.0f`、`Ki = 150000.0f`，误差限幅为 ±20，PI 输出限幅为 `[-0.83, 1.5]` us。
 - 周期控制关系为 `Ctrl_CycleTime = LLC_RESONANT_CYCLE_US - u_sat`，再受动态周期上下限约束。当前常规范围为 1.0–3.33 us，软启动会改变最大周期。修改 PI 符号前先核对工作区间与实际功率级响应。
-- `Ctrl_CycleTime` 单位为 us，`Ctrl_DeadTime` 单位为 ns。`PWM_CycleTime` 初始化时使用 s，更新时却直接保存 us；使用该字段前先追踪赋值路径，不要假设单位统一，也不要顺手改动整个工程。
+- `Ctrl_CycleTime` 和 `PWM_CycleTime` 使用 us，`Ctrl_DeadTime` 使用 ns。PWM 初始 `TBPRD` 截断取整，运行时更新采用四舍五入。
 - ePWM1 使用上下计数、时基不分频，按当前 150 MHz 时钟，更新公式为 `TBPRD ≈ 75 × Ctrl_CycleTime(us)`；`CMPA` 约为 `TBPRD / 2`。
 - 死区计数换算为 `dead_time(ns) × 0.15` 并取整。修改 CPU 时钟、分频或计数模式时必须重新核对这些换算和限幅。
-- 控制计算沿用 `_Ctr_values`，PWM 寄存器写入沿用 `_PWM_Values` 中的计算结果，初始化集中于现有初始化函数。
+- PI 模块管理运算状态，PWM 模块负责周期和死区换算以及运行时寄存器写入。
 
 ## ADC 与保护边界
 
 - 当前 `ADC_Init()` 配置 SEQ1 四通道、顺序采样、单次序列，关闭 ePWM SOCA 和外部触发，关闭 SEQ1 的 CPU 中断使能。
-- 当前由 Timer0 中的软件流程读取上一帧完成结果、清除完成标志，然后复位并启动下一次 SEQ1。不要按文件头旧注释将其描述为已启用的 ePWM 峰谷同步采样。
+- 当前由 Timer0 中的软件流程读取上一帧完成结果、清除完成标志，然后复位并启动下一次 SEQ1。
 - 通道映射：`ADCRESULT0 / ADCINA0 → Vout`，`ADCRESULT1 / ADCINA1 → IL`，`ADCRESULT2 / ADCINB0 → Vin`，`ADCRESULT3 / ADCINB1 → Iout`；结果读取右移 4 位。
 - `ADC_Transform = 3.0f / 4095.0f`，`IIR_ALPHA = 0.001f`。当前 LLC 的 `Vout` 直接取滤波后的 ADC 电压，另外三路乘 `44.4444f`；这只是源码现状，不代表硬件标定已确认。修改采样量或参考值前先核对量纲和模拟前端比例。
-- `adc_isr()` 中仍有 Boost 峰谷采样及 PI 调用，不属于当前 LLC 的 Timer0 控制路径，不要未经核对就启用。
 - `PWM_Disable()` 通过 ePWM1 `TZFRC.OST` 强制关断；`PWM_Enable()` 清除 `TZCLR.OST`。ePWM1 配置了 TZ1 一次性触发、A/B 输出强制低电平；硬件引脚和外部保护链是否有效须另行确认。
-- `SwOVP()`、`SwOCP()`、`SwUVP()`、`ShortOff()` 操作 `Boost_Values` 和 `Boost_Flag`，当前未接入 LLC 运行状态。不能把这些阈值或错误宏视为已生效的 LLC 软件保护。
+- LLC 运行状态暂未接入软件过压、过流、欠压和短路保护。
 - 新增 LLC 保护时须明确采样来源、阈值单位、调用周期、故障标志、关断和恢复路径；延时按实际调用频率计算，不能直接照搬旧注释。
 
 ## 实时性与硬件修改规则
@@ -99,7 +101,7 @@ LLC 算法修改优先定位 `LLC_function.c`，不要误改同名或近似名�
 - `Debug/makefile` 是 CCS 自动生成文件，现有环境也可通过 CCS 配套的 make 工具构建；不要手工维护生成的 makefile 或将其作为配置修改的替代方式。
 - 工程依赖外部 TI 头文件目录：`D:\AAAstudy\DSPF28335_Program\DSP2833x_Libraries\DSP2833x_common\include` 和 `DSP2833x_headers\include`，具体完整路径见 `.cproject`。缺失时如实报告，不擅自复制其他版本或改用主机 GCC 证明固件可用。
 - 工程元数据仍记录 `28335_RAM_lnk.cmd`，但当前目录未包含该脚本；现有 `Debug/makefile` 实际输入为 `DSP2833x_Librsries/F28335.cmd` 和 `DSP2833x_Headers_nonBIOS.cmd`，运行库为 `rts2800_fpu32.lib`。不要沿用旧文档“Debug 必为 RAM 链接、Release 必为 Flash 链接”的假定，也不要将 Release 自动视为已验证的生产配置。
-- `_FLASHOK` 当前在 `function.h` 定义；`main.c` 中的复制符号必须与链接脚本的 LOAD/RUN/SIZE 配置匹配。涉及 RAM 函数或链接布局时，检查 map 文件中的段位置、复制范围和 RAM 容量。
+- `_FLASHOK` 当前在 `control_config.h` 定义；`main.c` 中的复制符号必须与链接脚本的 LOAD/RUN/SIZE 配置匹配。涉及 RAM 函数或链接布局时，检查 map 文件中的段位置、复制范围和 RAM 容量。
 - 当前工程未提供独立自动化测试入口。代码修改后进行最小必要检查，并在工具链可用时编译相关配置；纯文档修改以交叉核对源码和检查文件差异为主。
 - 编译通过不代表 ADC 标定、控制稳定性、软启动、故障保护或 ISR 耗时已经上板验证。无法编译或上板时明确说明，不声称功能正常；验证失败时报告原因，不擅改无关内容。
 - 有 Git 元数据时使用 `git status`、`git diff` 检查改动；当前目录可能是无 `.git` 的工程副本，此时使用修改前后内容或文件哈希比对，不声称已完成 Git 差异检查。

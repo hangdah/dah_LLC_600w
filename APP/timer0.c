@@ -1,18 +1,17 @@
 /**
  * @file timer0.c
- * @brief CPU Timer0驱动 - 快速控制环 (~50kHz)
+ * @brief CPU Timer0驱动 - 快速控制环 (100kHz)
  * @date 2025
  * @author da
  *
  * Timer0配置:
- * - 周期: 20us (50kHz)
- * - 每20us触发一次用于电压PI控制和PWM更新
- * - 在RAM中执行以提高速度
+ * - 周期: 10us (100kHz)
+ * - 每10us触发一次用于电压PI控制和PWM更新
+ * - LLC 快环入口在 RAM 中执行
  */
 
 #include "timer0.h"
-#include "function.h"
-#include "LLC_function.h"
+#include "llc_app.h"
 #include "led.h"
 
 /**
@@ -56,7 +55,7 @@ void Timer0_Init(float Freq, float Period)
  * @param None
  * @return None
  *
- * 每20us执行:
+ * 每10us执行:
  * 1. 翻转LED1用于调试
  * 2. 采样ADC值
  * 3. 执行电压PI控制器
@@ -66,15 +65,7 @@ interrupt void Timer0_IRQn(void)
 {
     LED1_TOGGLE;
 
-    /* 先读上次结果，再启动下次ADC */
-    LLC_ADC_ReadPrevious_And_StartNext();
-
-    /* 至少有一帧有效ADC数据后再进入控制 */
-    if (g_llc_adc_valid)
-    {
-        LLC_V_PI_Controller_ComputeIncremental_AntiWindup();
-        LLC_PWM_Update();
-    }
+    LLC_App_FastTick();
 
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 }

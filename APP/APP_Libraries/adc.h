@@ -10,7 +10,7 @@
  *   * ADCRESULT1: IL (ADCINA1)
  *   * ADCRESULT2: Vin (ADCINB0)
  *   * ADCRESULT3: Iout (ADCINB1)
- * - 由ePWM SOCA触发实现同步采样
+ * - 由 LLC 快环软件触发
  */
 
 #ifndef APP_APP_LIBRARIES_ADC_H_
@@ -24,7 +24,6 @@
 
 void ADC_Init(void);
 Uint16 Read_ADC_CH0_Value(void);
-interrupt void  adc_isr(void);
 
 
 

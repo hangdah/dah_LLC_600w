@@ -5,26 +5,21 @@
  * @author da
  *
  * ADC配置:
- * - SEQ1: 由ePWM SOCA在TBCTR=0时触发 (谷值采样)
+ * - SEQ1: 由 LLC 快环软件触发
  * - 通道: ADCINA0 (Vout), ADCINA1 (IL), ADCINB0 (Vin), ADCINB1 (Iout)
  * - 双序列器模式，用于独立操作
  */
 
 #include "adc.h"
-#include "led.h"
-#include "function.h"
 #include "DSP2833x_Device.h"
 #include "DSP2833x_Examples.h"
-
-#pragma CODE_SECTION(adc_isr, ".TI.ramfunc")
 
 /**
  * @brief 初始化ADC模块
  * @param None
  * @return None
  *
- * 配置ADC为双序列器模式，使用ePWM触发。
- * SEQ1在谷值点(TBCTR=0)由SOCA触发采样。
+ * 配置ADC为双序列器模式，SEQ1 使用软件触发。
  */
 void ADC_Init(void)
 {
@@ -67,51 +62,4 @@ void ADC_Init(void)
     AdcRegs.ADCST.bit.INT_SEQ1_CLR = 1;
 
     EDIS;
-}
-
-/**
- * @brief ADC中断服务程序
- * @param None
- * @return None
- *
- * 处理SEQ1 (谷值) 和 SEQ2 (峰值) 采样中断。
- * 处理采样数据并触发PI控制更新。
- */
-interrupt void adc_isr(void)
-{
-    /* 检查SEQ1中断 (谷值采样, TBCTR=0) */
-    if (AdcRegs.ADCST.bit.INT_SEQ1 == 1)
-    {
-        LED7_TOGGLE; /* 调试LED - 应在~40kHz翻转 */
-
-        /* 处理谷值采样数据 */
-        Process_Valley_Samples();
-
-        /* 执行PI控制器并更新PWM */
-        V_PI_Controller_ComputeIncremental_AntiWindup();
-        I_PI_Controller_ComputeIncremental_AntiWindup();
-        PWM_Update();
-
-        /* 清除SEQ1中断标志 */
-        AdcRegs.ADCST.bit.INT_SEQ1_CLR = 1;
-    }
-    /* 检查SEQ2中断 (峰值采样, TBCTR=TBPRD) */
-    else if (AdcRegs.ADCST.bit.INT_SEQ2 == 1)
-    {
-        LED7_TOGGLE;
-
-        /* 处理峰值采样数据 */
-        Process_Peak_Samples();
-
-        /* 执行PI控制器并更新PWM */
-        V_PI_Controller_ComputeIncremental_AntiWindup();
-        I_PI_Controller_ComputeIncremental_AntiWindup();
-        PWM_Update();
-
-        /* 清除SEQ2中断标志 */
-        AdcRegs.ADCST.bit.INT_SEQ2_CLR = 1;
-    }
-
-    /* 向PIE控制器确认中断 */
-    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 }
