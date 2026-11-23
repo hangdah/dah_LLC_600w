@@ -44,6 +44,8 @@ const struct _ADC_Values *LLC_ADC_ReadPrevious_And_StartNext(void)
     AdcRegs.ADCTRL2.bit.RST_SEQ1 = 1;
     AdcRegs.ADCTRL2.bit.SOC_SEQ1 = 1;
     g_llc_adc_started = 1;
+
+    /* 首帧完成后，如果本拍未读到新结果，则继续使用上一份有效采样。 */
     return g_llc_adc_valid ? &LLC_Values : 0;
 }
 

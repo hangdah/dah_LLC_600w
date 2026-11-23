@@ -5,9 +5,10 @@
 #include "control_sampling.h"
 #include "control_state.h"
 
-/* Timer0 and Timer1 both access these commands. Keep the existing update order. */
+/* Timer0 快环和 Timer1 慢环共用的控制指令，按现有中断顺序更新。 */
 static volatile struct _Ctr_values LLC_Ctr;
 
+/* 在外设初始化期间清除 PI 状态，并准备控制指令和初始 PWM 时序。 */
 void LLC_App_Init(void)
 {
     LLC_V_PI_Clear();
@@ -26,6 +27,7 @@ void LLC_App_DisableOutput(void)
 }
 
 #pragma CODE_SECTION(LLC_App_FastTick, ".TI.ramfunc")
+/* 每 10 us 处理采样、执行电压 PI 并更新 PWM，首帧有效后才运行 PI。 */
 void LLC_App_FastTick(void)
 {
     const struct _ADC_Values *values = LLC_ADC_ReadPrevious_And_StartNext();
@@ -38,6 +40,7 @@ void LLC_App_FastTick(void)
 }
 
 #pragma CODE_SECTION(LLC_App_SlowTick, ".TI.ramfunc")
+/* 每 2.5 ms 推进状态机，处理软启动和故障状态。 */
 void LLC_App_SlowTick(void)
 {
     LLC_State_M(&LLC_Ctr);

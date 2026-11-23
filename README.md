@@ -29,8 +29,7 @@ main.c                  系统入口与初始化
 APP/
   llc_app.c             LLC 初始化及快慢环入口
   control_config.c      控制参数，常量见 control_config.h
-  control_algorithm.c   LLC 电压 PI 与周期控制
-  pi_controller.c       通用增量式 PI
+  control_algorithm.c   通用增量式 PI、LLC 电压 PI 与周期控制
   control_sampling.c    ADC 采样处理、滤波及零偏校准
   control_pwm.c         PWM 周期、死区及输出控制
   control_state.c       状态机与软启动

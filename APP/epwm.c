@@ -16,6 +16,22 @@
 #include "led.h"
 #include "DSP2833x_Device.h"
 #include "DSP2833x_Examples.h"
+#include "SFO_V5.h"
+
+int MEP_ScaleFactor[PWM_CH] = {0};
+int SFO_Status = 0;
+
+// SFO V5: ePWM register pointer array
+volatile struct EPWM_REGS *ePWM[PWM_CH] =
+{
+    0,          // Dummy element
+    &EPwm1Regs,
+    &EPwm2Regs,
+    &EPwm3Regs,
+    &EPwm4Regs,
+    &EPwm5Regs,
+    &EPwm6Regs
+};
 
 #pragma CODE_SECTION(EPwm1A_SetCompare, ".TI.ramfunc")
 
@@ -146,6 +162,14 @@ void EPWM1_Init(Uint16 tbprd){
 //    EPwm1Regs.ETSEL.bit.SOCBSEL = ET_CTR_PRD;       /* TBCTR=TBPRD时触发 (峰值) */
 //    EPwm1Regs.ETPS.bit.SOCBPRD = ET_1ST;
 
+    /* HRPWM 配置 */
+    EALLOW;
+
+    EPwm1Regs.HRCNFG.all = 0x0000;
+    EPwm1Regs.HRCNFG.bit.EDGMODE = HR_FEP;          /* 下降沿高分辨率控制 */
+    EPwm1Regs.HRCNFG.bit.CTLMODE = HR_CMP;          /* 通过 CMPAHR 控制 MEP */
+    EPwm1Regs.HRCNFG.bit.HRLOAD = HR_CTR_ZERO;      /*  CTR=ZERO 时加载 */
+
     EDIS;
 }
 
@@ -158,4 +182,83 @@ interrupt void epwm1_isr(void){
     /* 清除中断标志 */
     EPwm1Regs.ETCLR.bit.INT = 1;
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP3;
+}
+
+void HRPWM1_SFO_Init(void)
+{
+    // =====================================
+    // 1. Obtain initial MEP scale factor
+    //    HRPWM must be disabled here
+    // =====================================
+    while(SFO_MepDis_V5(1) == 0);
+
+    // Initialize seed value
+    MEP_ScaleFactor[0] = MEP_ScaleFactor[1];
+
+
+    // =====================================
+    // 2. Enable HRPWM
+    // =====================================
+    EALLOW;
+
+    EPwm1Regs.HRCNFG.all = 0x0000;
+
+    EPwm1Regs.HRCNFG.bit.EDGMODE = HR_FEP;
+    EPwm1Regs.HRCNFG.bit.CTLMODE = HR_CMP;
+    EPwm1Regs.HRCNFG.bit.HRLOAD = HR_CTR_ZERO;
+
+    EDIS;
+
+
+    // =====================================
+    // 3. Enable SFO calibration
+    // =====================================
+    do
+    {
+        SFO_Status = SFO_MepEn_V5(1);
+
+    }while(SFO_Status == 0);
+
+    if(SFO_Status == 2)
+    {
+        // MEP scale factor error
+        // Handle error here
+    }
+}
+
+#pragma CODE_SECTION(EPWM1_SetCompareHR, ".TI.ramfunc")
+void EPWM1_SetCompareHR(Uint16 cmpa, float cmpa_frac)
+{
+    Uint16 cmpahr;
+    Uint32 cmpValue;
+
+    // Check SFO calibration
+    if(MEP_ScaleFactor[1] <= 0)
+        return;
+
+    // Limit fractional part
+    if(cmpa_frac < 0.0f)
+        cmpa_frac = 0.0f;
+
+    if(cmpa_frac >= 1.0f)
+    {
+        cmpa++;
+        cmpa_frac -= 1.0f;
+    }
+
+    // Calculate MEP steps
+    cmpahr = (Uint16)(
+        cmpa_frac * (float)MEP_ScaleFactor[1] + 1.5f
+    );
+
+    // Limit MEP value
+    if(cmpahr > 255)
+        cmpahr = 255;
+
+    // Combine CMPA and CMPAHR
+    cmpValue = ((Uint32)cmpa << 16)
+             | ((Uint32)cmpahr << 8);
+
+    // Update HRPWM compare register
+    EPwm1Regs.CMPA.all = cmpValue;
 }

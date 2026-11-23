@@ -18,7 +18,7 @@ void LLC_PWM_Values_Init(void)
 {
     const float periodSeconds = 1.0f / LLC_RESONANT_FREQ;
 
-    /* Preserve the initial truncation. Runtime updates round to nearest. */
+    /* 初始周期计数直接截断取整，运行时更新采用四舍五入。 */
     LLC_PWM.PWM_TBPRD = LLC_CPU_MHZ * 1000000.0f * 0.5f * periodSeconds;
     LLC_PWM.PWM_CycleTime = LLC_RESONANT_CYCLE_US;
     LLC_PWM.PWM_AComp = LLC_INITIAL_DUTY * LLC_PWM.PWM_TBPRD;
@@ -42,7 +42,7 @@ Uint16 LLC_PWM_GetTbprd(void)
 #pragma CODE_SECTION(LLC_PWM_Update, ".TI.ramfunc")
 /**
  * @brief 根据PI输出更新LLC PWM频率
- * @param control Period (us) and dead time (ns) commands
+ * @param control 开关周期（us）和死区时间（ns）指令
  * @return None
  */
 void LLC_PWM_Update(const volatile struct _Ctr_values *control)
@@ -51,7 +51,7 @@ void LLC_PWM_Update(const volatile struct _Ctr_values *control)
     if (LLC_PWM.PWM_TBPRD < 2)
         LLC_PWM.PWM_TBPRD = 2;
 
-    LLC_PWM.PWM_AComp = LLC_PWM.PWM_TBPRD >> 1;   /* 50% duty */
+    LLC_PWM.PWM_AComp = LLC_PWM.PWM_TBPRD >> 1;   /* 比较值取半周期，对应约 50% 占空比 */
     if (LLC_PWM.PWM_AComp < 1)
         LLC_PWM.PWM_AComp = 1;
     else if (LLC_PWM.PWM_AComp >= LLC_PWM.PWM_TBPRD)
@@ -72,7 +72,7 @@ void LLC_PWM_Update(const volatile struct _Ctr_values *control)
 }
 
 #pragma CODE_SECTION(PWM_Disable, ".TI.ramfunc")
-/* Force a one-shot trip to hold both PWM outputs low. */
+/* 强制触发一次性 Trip，将两路 PWM 输出保持为低电平。 */
 void PWM_Disable(void)
 {
     EALLOW;
@@ -81,7 +81,7 @@ void PWM_Disable(void)
 }
 
 #pragma CODE_SECTION(PWM_Enable, ".TI.ramfunc")
-/* Clear the one-shot trip to resume PWM output. */
+/* 清除一次性 Trip 标志，以恢复 PWM 输出。 */
 void PWM_Enable(void)
 {
     EALLOW;

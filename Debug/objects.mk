@@ -4,5 +4,5 @@
 
 USER_OBJS :=
 
-LIBS := -lrts2800_fpu32.lib
+LIBS := -lrts2800_fpu32.lib -lSFO_TI_Build_V5B_fpu.lib
 

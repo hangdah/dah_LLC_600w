@@ -30,13 +30,14 @@ static struct
 } LLC_Flag;
 
 static S_State_M Soft_State_M = SSInit;
+/* 供 CCS Graph 观察软启动子状态。 */
 volatile unsigned int g_Soft_State_M_for_Graph = 0;
 volatile unsigned char RsingInitFlag = 0;
 
 #pragma CODE_SECTION(LLC_ValInit, ".TI.ramfunc")
 /**
  * @brief 初始化LLC控制值
- * @param control Shared control commands
+ * @param control 快慢环共享的控制指令
  * @return None
  */
 static void LLC_ValInit(volatile struct _Ctr_values *control)
@@ -52,7 +53,7 @@ static void LLC_ValInit(volatile struct _Ctr_values *control)
 #pragma CODE_SECTION(LLC_StateMInit, ".TI.ramfunc")
 /**
  * @brief 初始化状态处理函数
- * @param control Shared control commands
+ * @param control 快慢环共享的控制指令
  * @return None
  */
 static void LLC_StateMInit(volatile struct _Ctr_values *control)
@@ -98,7 +99,7 @@ static void LLC_StateMWait(void)
 #pragma CODE_SECTION(LLC_StateMRise, ".TI.ramfunc")
 /**
  * @brief 带子状态机的软启动状态处理函数
- * @param control Shared control commands
+ * @param control 快慢环共享的控制指令
  * @return None
  */
 static void LLC_StateMRise(volatile struct _Ctr_values *control)
@@ -191,7 +192,7 @@ static void LLC_StateMErr(void)
 #pragma CODE_SECTION(LLC_State_M, ".TI.ramfunc")
 /**
  * @brief LLC状态机主处理函数
- * @param control Shared control commands
+ * @param control 快慢环共享的控制指令
  * @return None
  */
 void LLC_State_M(volatile struct _Ctr_values *control)

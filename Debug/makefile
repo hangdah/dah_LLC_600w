@@ -11,13 +11,17 @@ GEN_CMDS__FLAG :=
 
 ORDERED_OBJS += \
 "./main.obj" \
-"./APP/LLC_function.obj" \
 "./APP/adc.obj" \
+"./APP/control_algorithm.obj" \
+"./APP/control_config.obj" \
+"./APP/control_pwm.obj" \
+"./APP/control_sampling.obj" \
+"./APP/control_state.obj" \
 "./APP/epwm.obj" \
 "./APP/exit.obj" \
-"./APP/function.obj" \
 "./APP/key.obj" \
 "./APP/led.obj" \
+"./APP/llc_app.obj" \
 "./APP/mppt.obj" \
 "./APP/relay.obj" \
 "./APP/timer0.obj" \
@@ -38,8 +42,12 @@ ORDERED_OBJS += \
 "../DSP2833x_Librsries/DSP2833x_Headers_nonBIOS.cmd" \
 "../DSP2833x_Librsries/F28335.cmd" \
 "../DSP2833x_Librsries/IQmath.lib" \
+"../Libraries/lib/SFO_TI_Build_V5B_fpu.lib" \
+"../Libraries/lib/rts2800_fpu32_fast_supplement.lib" \
+"../Libraries/lib/rts2800_fpu32_fast_supplement_coff.lib" \
 $(GEN_CMDS__FLAG) \
 -lrts2800_fpu32.lib \
+-lSFO_TI_Build_V5B_fpu.lib \
 
 -include ../makefile.init
 
@@ -51,9 +59,11 @@ RMDIR := RMDIR /S/Q
 -include subdir_vars.mk
 -include APP/subdir_vars.mk
 -include DSP2833x_Librsries/subdir_vars.mk
+-include Libraries/lib/subdir_vars.mk
 -include subdir_rules.mk
 -include APP/subdir_rules.mk
 -include DSP2833x_Librsries/subdir_rules.mk
+-include Libraries/lib/subdir_rules.mk
 -include objects.mk
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -164,15 +174,15 @@ all: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(GEN_CMDS)
 dah_LLC_600w.out: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(GEN_CMDS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: C2000 Linker'
-	"D:/apps/ccstudio/ccs/tools/compiler/ti-cgt-c2000_22.6.1.LTS/bin/cl2000" -v28 -ml -mt --float_support=fpu32 -g --diag_warning=225 --diag_wrap=off --display_error_number --abi=coffabi -z -m"dah_LLC_600w.map" --stack_size=0x300 --warn_sections -i"D:/apps/ccstudio/ccs/tools/compiler/ti-cgt-c2000_22.6.1.LTS/lib" -i"D:/apps/ccstudio/ccs/tools/compiler/ti-cgt-c2000_22.6.1.LTS/include" --reread_libs --diag_wrap=off --display_error_number --xml_link_info="dah_LLC_600w_linkInfo.xml" --rom_model -o "dah_LLC_600w.out" $(ORDERED_OBJS)
+	"D:/apps/ccstudio/ccs/tools/compiler/ti-cgt-c2000_22.6.1.LTS/bin/cl2000" -v28 -ml -mt --float_support=fpu32 -g --diag_warning=225 --diag_wrap=off --display_error_number --abi=coffabi -z -m"dah_LLC_600w.map" --stack_size=0x300 --warn_sections -i"D:/apps/ccstudio/ccs/tools/compiler/ti-cgt-c2000_22.6.1.LTS/lib" -i"D:/apps/ccstudio/ccs/tools/compiler/ti-cgt-c2000_22.6.1.LTS/include" -i"D:/AAAstudy/DSPF28335_Program/microinverter_projects/dah_LLC_600w/Libraries/lib" --reread_libs --diag_wrap=off --display_error_number --xml_link_info="dah_LLC_600w_linkInfo.xml" --rom_model -o "dah_LLC_600w.out" $(ORDERED_OBJS)
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 
 # Other Targets
 clean:
 	-$(RM) $(EXE_OUTPUTS__QUOTED)
-	-$(RM) "main.obj" "APP\LLC_function.obj" "APP\adc.obj" "APP\epwm.obj" "APP\exit.obj" "APP\function.obj" "APP\key.obj" "APP\led.obj" "APP\mppt.obj" "APP\relay.obj" "APP\timer0.obj" "APP\timer1.obj" "DSP2833x_Librsries\DSP2833x_ADC_cal.obj" "DSP2833x_Librsries\DSP2833x_Adc.obj" "DSP2833x_Librsries\DSP2833x_CodeStartBranch.obj" "DSP2833x_Librsries\DSP2833x_CpuTimers.obj" "DSP2833x_Librsries\DSP2833x_DefaultIsr.obj" "DSP2833x_Librsries\DSP2833x_EPwm.obj" "DSP2833x_Librsries\DSP2833x_GlobalVariableDefs.obj" "DSP2833x_Librsries\DSP2833x_Gpio.obj" "DSP2833x_Librsries\DSP2833x_PieCtrl.obj" "DSP2833x_Librsries\DSP2833x_PieVect.obj" "DSP2833x_Librsries\DSP2833x_Sci.obj" "DSP2833x_Librsries\DSP2833x_SysCtrl.obj" "DSP2833x_Librsries\DSP2833x_usDelay.obj" 
-	-$(RM) "main.d" "APP\LLC_function.d" "APP\adc.d" "APP\epwm.d" "APP\exit.d" "APP\function.d" "APP\key.d" "APP\led.d" "APP\mppt.d" "APP\relay.d" "APP\timer0.d" "APP\timer1.d" "DSP2833x_Librsries\DSP2833x_Adc.d" "DSP2833x_Librsries\DSP2833x_CpuTimers.d" "DSP2833x_Librsries\DSP2833x_DefaultIsr.d" "DSP2833x_Librsries\DSP2833x_EPwm.d" "DSP2833x_Librsries\DSP2833x_GlobalVariableDefs.d" "DSP2833x_Librsries\DSP2833x_Gpio.d" "DSP2833x_Librsries\DSP2833x_PieCtrl.d" "DSP2833x_Librsries\DSP2833x_PieVect.d" "DSP2833x_Librsries\DSP2833x_Sci.d" "DSP2833x_Librsries\DSP2833x_SysCtrl.d" 
+	-$(RM) "main.obj" "APP\adc.obj" "APP\control_algorithm.obj" "APP\control_config.obj" "APP\control_pwm.obj" "APP\control_sampling.obj" "APP\control_state.obj" "APP\epwm.obj" "APP\exit.obj" "APP\key.obj" "APP\led.obj" "APP\llc_app.obj" "APP\mppt.obj" "APP\relay.obj" "APP\timer0.obj" "APP\timer1.obj" "DSP2833x_Librsries\DSP2833x_ADC_cal.obj" "DSP2833x_Librsries\DSP2833x_Adc.obj" "DSP2833x_Librsries\DSP2833x_CodeStartBranch.obj" "DSP2833x_Librsries\DSP2833x_CpuTimers.obj" "DSP2833x_Librsries\DSP2833x_DefaultIsr.obj" "DSP2833x_Librsries\DSP2833x_EPwm.obj" "DSP2833x_Librsries\DSP2833x_GlobalVariableDefs.obj" "DSP2833x_Librsries\DSP2833x_Gpio.obj" "DSP2833x_Librsries\DSP2833x_PieCtrl.obj" "DSP2833x_Librsries\DSP2833x_PieVect.obj" "DSP2833x_Librsries\DSP2833x_Sci.obj" "DSP2833x_Librsries\DSP2833x_SysCtrl.obj" "DSP2833x_Librsries\DSP2833x_usDelay.obj" 
+	-$(RM) "main.d" "APP\adc.d" "APP\control_algorithm.d" "APP\control_config.d" "APP\control_pwm.d" "APP\control_sampling.d" "APP\control_state.d" "APP\epwm.d" "APP\exit.d" "APP\key.d" "APP\led.d" "APP\llc_app.d" "APP\mppt.d" "APP\relay.d" "APP\timer0.d" "APP\timer1.d" "DSP2833x_Librsries\DSP2833x_Adc.d" "DSP2833x_Librsries\DSP2833x_CpuTimers.d" "DSP2833x_Librsries\DSP2833x_DefaultIsr.d" "DSP2833x_Librsries\DSP2833x_EPwm.d" "DSP2833x_Librsries\DSP2833x_GlobalVariableDefs.d" "DSP2833x_Librsries\DSP2833x_Gpio.d" "DSP2833x_Librsries\DSP2833x_PieCtrl.d" "DSP2833x_Librsries\DSP2833x_PieVect.d" "DSP2833x_Librsries\DSP2833x_Sci.d" "DSP2833x_Librsries\DSP2833x_SysCtrl.d" 
 	-$(RM) "DSP2833x_Librsries\DSP2833x_ADC_cal.d" "DSP2833x_Librsries\DSP2833x_CodeStartBranch.d" "DSP2833x_Librsries\DSP2833x_usDelay.d" 
 	-@echo 'Finished clean'
 	-@echo ' '

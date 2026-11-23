@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本文件适用于本工程目录及其子目录，供编码代理阅读、修改和验证工程时使用。默认使用中文与用户交流，新增嵌入式 C 注释优先使用英文。
+本文件适用于本工程目录及其子目录，供编码代理阅读、修改和验证工程时使用。默认使用中文与用户交流，新增源码注释使用中文。
 
 ## 工作原则
 
@@ -11,6 +11,22 @@
 - 保留用户已有修改；除非任务确有需要，不创建额外文件，不升级依赖、编译器或工具链，不擅改工程配置。
 - 意图不明确且会影响控制行为或硬件配置时，先说明疑问。删除文件、覆盖大量代码或执行不可逆操作前询问用户。
 - 完成后检查差异，简要说明涉及的文件、行为变化、验证结果和未验证事项。
+
+## 源码修改范围
+
+- 编写和修改代码仅限以下六组现有文件。其他源码可用于阅读和核对，确需修改时先取得用户的明确许可。
+
+| 源文件 | 对应头文件 |
+| --- | --- |
+| `APP/control_algorithm.c` | `APP/APP_Libraries/control_algorithm.h` |
+| `APP/control_config.c` | `APP/APP_Libraries/control_config.h` |
+| `APP/control_pwm.c` | `APP/APP_Libraries/control_pwm.h` |
+| `APP/control_sampling.c` | `APP/APP_Libraries/control_sampling.h` |
+| `APP/control_state.c` | `APP/APP_Libraries/control_state.h` |
+| `APP/llc_app.c` | `APP/APP_Libraries/llc_app.h` |
+
+- 按职责把新功能写入对应模块。通用 PI 和 LLC 电压 PI 均放在 `control_algorithm.c/.h`，通用函数保留可复用接口，无需另建 `pi_controller.c/.h`。
+- 新增或修改控制逻辑时，用中文注释说明模块职责、关键计算、限幅和时序。参数有量纲时注明单位，接口有边界条件时说明返回值和状态变化。
 
 ## 工程定位与资料依据
 
@@ -26,8 +42,7 @@
 | `main.c` | 系统入口、Flash/RAM 准备、外设与控制参数初始化、定时器周期设置；主循环为空 |
 | `APP/llc_app.c` | LLC 应用入口，持有快慢环共享的控制指令 |
 | `APP/control_config.c`、`APP/APP_Libraries/control_config.h` | 控制默认值、参数和量纲 |
-| `APP/control_algorithm.c` | LLC 电压 PI 参数、输出到周期的换算及周期限幅 |
-| `APP/pi_controller.c` | 通用增量式 PI、误差与输出限幅、抗饱和状态更新 |
+| `APP/control_algorithm.c` | 通用增量式 PI、抗饱和，以及 LLC 电压 PI 与周期换算 |
 | `APP/control_sampling.c` | ADC 流水采样、滤波及输出电流零偏校准 |
 | `APP/control_pwm.c` | PWM 计算、运行时寄存器更新及 Trip Zone 输出启停 |
 | `APP/control_state.c` | 主状态机、软启动子状态及预留的 Burst 实现 |

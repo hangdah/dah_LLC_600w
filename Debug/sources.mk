@@ -114,4 +114,5 @@ SUBDIRS := \
 . \
 APP \
 DSP2833x_Librsries \
+Libraries/lib \
 
