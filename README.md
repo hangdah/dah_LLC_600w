@@ -1,5 +1,11 @@
 # dah_LLC_600w
 
+## 作者与链接
+
+- 作者：hangdah
+- 个人主页：[https://hangdah.github.io/](https://hangdah.github.io/)
+- 项目地址：[https://github.com/hangdah/dah_LLC_600w](https://github.com/hangdah/dah_LLC_600w)
+
 基于 **TI TMS320F28335 DSP** 的 LLC 谐振变换器控制工程，面向微逆变器应用，使用 Code Composer Studio（CCS）开发。
 
 ## 主要功能
@@ -36,9 +42,3 @@ Debug/                  构建产物与自动生成文件
 当前工程保留了部分 Boost 历史代码，其中的公共结构和 PWM 使能、关断函数仍被 LLC 使用。LLC 的软件过压、过流、欠压保护尚未接入当前运行状态，电流 PI 为占位实现，Burst 控制尚未接入主控制流程。
 
 更多源码说明和修改约定见 [AGENTS.md](AGENTS.md)。
-
-## 作者与链接
-
-- 作者：hangdah
-- 个人主页：[https://hangdah.github.io/](https://hangdah.github.io/)
-- 项目地址：[https://github.com/hangdah/dah_LLC_600w](https://github.com/hangdah/dah_LLC_600w)
