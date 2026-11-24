@@ -19,18 +19,18 @@ void LLC_PWM_Values_Init(void)
     const float periodSeconds = 1.0f / LLC_RESONANT_FREQ;
 
     /* 初始周期计数直接截断取整，运行时更新采用四舍五入。 */
-    LLC_PWM.PWM_TBPRD = LLC_CPU_MHZ * 1000000.0f * 0.5f * periodSeconds;
-    LLC_PWM.PWM_CycleTime = LLC_RESONANT_CYCLE_US;
-    LLC_PWM.PWM_AComp = LLC_INITIAL_DUTY * LLC_PWM.PWM_TBPRD;
+    LLC_PWM.PWM_TBPRD       = LLC_CPU_MHZ * 1000000.0f * 0.5f * periodSeconds;
+    LLC_PWM.PWM_CycleTime   = LLC_RESONANT_CYCLE_US;
+    LLC_PWM.PWM_AComp       = LLC_INITIAL_DUTY * LLC_PWM.PWM_TBPRD;
 
     /* 死区时间，单位 ns */
-    LLC_PWM.PWM_DeadTime  = LLC_INITIAL_DEAD_TIME_NS;
+    LLC_PWM.PWM_DeadTime    = LLC_INITIAL_DEAD_TIME_NS;
 
     /* 将死区时间从 ns 转为 DBRED/DBFED 计数
        count = t_dead(ns) * TBCLK(Hz) / 1e9 */
     EALLOW;
-    EPwm1Regs.DBRED = (Uint16)(LLC_PWM.PWM_DeadTime * LLC_DEAD_COUNTS_PER_NS + 0.5f);
-    EPwm1Regs.DBFED = (Uint16)(LLC_PWM.PWM_DeadTime * LLC_DEAD_COUNTS_PER_NS + 0.5f);
+    EPwm1Regs.DBRED         = (Uint16)(LLC_PWM.PWM_DeadTime * LLC_DEAD_COUNTS_PER_NS + 0.5f);
+    EPwm1Regs.DBFED         = (Uint16)(LLC_PWM.PWM_DeadTime * LLC_DEAD_COUNTS_PER_NS + 0.5f);
     EDIS;
 }
 

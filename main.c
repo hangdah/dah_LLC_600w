@@ -61,17 +61,13 @@ void main()
     EDIS;
 
     /* 初始化外设 */
-    LED_Init();                     /* 初始化用于LED的GPIO */
-    LLC_App_Init();                 /* 初始化LLC控制参数和PWM时序值 */
-
-    /* 初始化定时器 - Timer0: 10us (100kHz) 用于快速控制环路 */
-    Timer0_Init(LLC_CPU_MHZ, LLC_FAST_PERIOD_US);
-    /* Timer1: 2500us (400Hz) 用于慢速控制环路和状态机 */
-    Timer1_Init(LLC_CPU_MHZ, LLC_SLOW_PERIOD_US);
-
-    EPWM1_Init(LLC_App_GetInitialTbprd()); /* 使用计算出的周期初始化ePWM1 */
-    ADC_Init();                     /* 初始化ADC用于电压/电流采样 */
-    LLC_App_DisableOutput();                  /* 在启动序列完成前保持PWM禁用 */
+    LED_Init();     /* 初始化用于LED的GPIO */
+    LLC_App_Init(); /* 初始化LLC控制参数和PWM时序值 */
+    ADC_Init();     /* 初始化ADC用于电压/电流采样 */
+    LLC_App_DisableOutput();                        /* 在启动序列完成前保持PWM禁用 */
+    EPWM1_Init(LLC_App_GetInitialTbprd());          /* 使用计算出的周期初始化ePWM1 */
+    Timer0_Init(LLC_CPU_MHZ, LLC_FAST_PERIOD_US);   /* Timer0: 10us (100kHz) 用于快速控制环路 */
+    Timer1_Init(LLC_CPU_MHZ, LLC_SLOW_PERIOD_US);   /* Timer1: 2500us (400Hz) 用于慢速控制环路和状态机 */
 
     /* 启用PWM时钟同步 */
     EALLOW;
@@ -79,12 +75,11 @@ void main()
     EDIS;
 
     /* 启用全局中断和实时调试 */
-    EINT;                           /* 启用全局中断 */
-    ERTM;                           /* 启用实时调试模式 */
+    EINT;   /* 启用全局中断 */
+    ERTM;   /* 启用实时调试模式 */
 
     /* 主循环 - 控制逻辑在中断处理程序中运行 */
     while(1)
     {
-        /* 空闲循环 - 所有处理都在Timer0/Timer1的中断服务程序中完成 */
     }
 }

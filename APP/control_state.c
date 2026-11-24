@@ -112,10 +112,10 @@ static void LLC_StateMRise(volatile struct _Ctr_values *control)
         {
             RsingInitFlag = 0;
             PWM_Disable();
-            control->MAX_CycleTime = LLC_MIN_CYCLE_US;  /* 软启动时使用最高频率 */
-            control->Ctrl_DeadTime = LLC_MAX_DEAD_TIME_NS;
-            control->V_Ref = LLC_SOFT_START_VREF;
-            Soft_State_M = SSWait;
+            control->MAX_CycleTime  = LLC_MIN_CYCLE_US;  /* 软启动时使用最高频率 */
+            control->Ctrl_DeadTime  = LLC_MAX_DEAD_TIME_NS;
+            control->V_Ref          = LLC_SOFT_START_VREF;
+            Soft_State_M            = SSWait;
             g_Soft_State_M_for_Graph = Soft_State_M;
             break;
         }
@@ -199,19 +199,19 @@ void LLC_State_M(volatile struct _Ctr_values *control)
 {
     switch(LLC_Flag.StateM)
     {
-        case  Init :LLC_StateMInit(control);   break;  /* 初始化状态 */
-        case  Wait :LLC_StateMWait();   break;  /* 等待状态 */
-        case  Rise :LLC_StateMRise(control);   break;  /* 软启动状态 */
-        case  Run :LLC_StateMRun();     break;  /* 运行状态 */
-        case  Err :LLC_StateMErr();     break;  /* 错误状态 */
+        case  Init :LLC_StateMInit(control);    break;  /* 初始化状态 */
+        case  Wait :LLC_StateMWait();           break;  /* 等待状态 */
+        case  Rise :LLC_StateMRise(control);    break;  /* 软启动状态 */
+        case  Run  :LLC_StateMRun();            break;  /* 运行状态 */
+        case  Err  :LLC_StateMErr();            break;  /* 错误状态 */
     }
 }
 
 void LLC_BurstCtl(const volatile struct _Ctr_values *control)
 {
-    static unsigned char BurstOffFlag = 0;
-    static unsigned int BurstOnCnt = 0;
-    static unsigned int BurstOffCnt = 0;
+    static unsigned char    BurstOffFlag    = 0;
+    static unsigned int     BurstOnCnt      = 0;
+    static unsigned int     BurstOffCnt     = 0;
 
     /* Burst模式仅在运行状态下允许 */
     if(LLC_Flag.StateM != Run)
@@ -225,7 +225,7 @@ void LLC_BurstCtl(const volatile struct _Ctr_values *control)
     /* Burst模式被禁用 */
     if(!(LLC_Flag.Ctr & F_BURST))
     {
-        BurstOnCnt = 0;
+        BurstOnCnt  = 0;
         BurstOffCnt = 0;
 
         if(BurstOffFlag)

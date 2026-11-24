@@ -34,13 +34,13 @@ void Timer1_Init(float Freq, float Period)
     EDIS;
 
     /* 配置Timer1 */
-    CpuTimer1.RegsAddr = &CpuTimer1Regs;
-    CpuTimer1Regs.PRD.all  = 0xFFFFFFFF;
-    CpuTimer1Regs.TPR.all  = 0;
-    CpuTimer1Regs.TPRH.all = 0;
-    CpuTimer1Regs.TCR.bit.TSS = 1;              /* 停止定时器 */
-    CpuTimer1Regs.TCR.bit.TRB = 1;              /* 重载周期 */
-    CpuTimer1.InterruptCount = 0;
+    CpuTimer1.RegsAddr          = &CpuTimer1Regs;
+    CpuTimer1Regs.PRD.all       = 0xFFFFFFFF;
+    CpuTimer1Regs.TPR.all       = 0;
+    CpuTimer1Regs.TPRH.all      = 0;
+    CpuTimer1Regs.TCR.bit.TSS   = 1;              /* 停止定时器 */
+    CpuTimer1Regs.TCR.bit.TRB   = 1;              /* 重载周期 */
+    CpuTimer1.InterruptCount    = 0;
 
     ConfigCpuTimer(&CpuTimer1, Freq, Period);
 
